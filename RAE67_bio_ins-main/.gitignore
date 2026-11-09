@@ -1,0 +1,24 @@
+.venv/
+__pycache__/
+*.pyc
+results/
+.test-*/
+.manual-render/
+lab_03/output/
+lab_03/tests/
+lab_03/instructor_reference.py
+lab_04/tests/
+lab_04/reference_controller.py
+lab_04/instructor_notes.md
+lab_04/output/
+
+lab_05/tests/
+lab_05/instructor_guide.md
+lab_05/instructor_reference.py
+lab_05/output/
+lab_05/*Instructor*
+lab_05/*Validation*
+
+# Office lock files and local bundles
+~$*
+Lab02_submission_*.zip
