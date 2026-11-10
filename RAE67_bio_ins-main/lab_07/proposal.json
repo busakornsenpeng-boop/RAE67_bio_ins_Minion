@@ -1,0 +1,45 @@
+{
+  "question": "ในการเล่นกับคนนาน 600 s การเพิ่ม artificial hormone (AHM) ที่สะสมจาก interaction แล้วปรับ SO(2) CPG ของท่า nod และ guard การเข้า sleepy ทำให้จำนวน state transition ต่อนาทีและ deadline pass rate ≤ 1 s ของ primary inputs ต่างจาก FSM ตรง (Lab07 baseline) เท่าใด ทั้งใน simulation และบนโคมไฟจริง",
+  "hypothesis": "C1 (AHM-modulated) มี state transitions ต่อนาทีต่ำกว่า C0 อย่างน้อย 20% ในช่วงที่มี input ถี่ (approach/touch ซ้ำ) เพราะ H เป็น low-pass memory ที่หน่วงการกลับไป normal/sleepy ขณะที่ pass rate ≤ 1 s ของ primary inputs ลดลงไม่เกิน 1 ใน 7 ต่อ session ขอบเขต: สรุปเฉพาะโคมไฟของกลุ่ม mapping/bounds ที่ประกาศไว้ และ scenario 600 s ไม่สรุปถึงความพึงพอใจหรือความปลอดภัยของผู้ใช้ทั่วไป",
+  "biological_inspiration_source": "Homchanthanakul et al. (2019) IROS DOI 10.1109/IROS40897.2019.8968580: hormone สะสมจาก stimulus, ถูกกำจัดด้วย decay และ receptor binding แล้วปรับพฤติกรรมช้ากว่า neural loop; Ngamkajornwiwat et al. (2020) IEEE Access DOI 10.1109/ACCESS.2020.2992794: ALCS ใช้ AHM ปรับ CPG ของ walking robot กลไกที่ยืมมาคือ slow hormonal modulation ของ rhythm generator ไม่ได้ reproduce MNLC หรือผลของ paper",
+  "AHM_equation": "Source: Hc(t) = β·Hc(t−1) + α·f(S(t)) − Σγᵢ·Receptorᵢ(t) (Homchanthanakul et al., 2019) Proposed course model (Lab04/05): H(t+dt) = clamp(H + dt(k_prod·S − k_clear·H − k_bind·R), 0, 1), R = clamp((H − H_min)/(H_max − H_min), 0, 1) โดย S = 1 เมื่อ recognized touch หรือ approach อยู่ใน tick นั้น มี hormone 1 ตัวคือ H_social",
+  "SO2_CPG_equation": "Dr. Poramate Manoonpong SO(2) CPG: a₁(t+1) = α[cos(φ)o₁(t) + sin(φ)o₂(t)], a₂(t+1) = α[−sin(φ)o₁(t) + cos(φ)o₂(t)], oᵢ(t+1) = tanh(aᵢ(t+1)) แบบ simultaneous update, α = 1.10 ใช้ o₁ เป็นมุม nod ในสถานะ happy/interested แทน sin(2πt) เดิม",
+  "integration_description": "AHM–CPG และ AHM–emotion: R จาก H_social ปรับ φ ของ CPG ด้วย bounded mapping φ = clamp(0.20 + 0.20R, 0.10, 0.45) rad ทำให้ nod เร็วขึ้นเมื่อมี interaction สะสม และ guard การเข้า sleepy: idle → sleepy เฉพาะเมื่อ R < 0.1 policy FSM, fault/near/clear safety และ pose bounds/slew คงเดิมจาก Lab07 hormone ไม่ได้สั่งมอเตอร์โดยตรง",
+  "independent_variable": "การมีหรือไม่มี AHM path (H_social → R → φ ของ CPG และ sleepy guard) โดย policy, stimuli และ hardware อื่นคงที่",
+  "conditions": [
+    {"name": "C0", "baseline": true, "change": "Lab07 baseline FSM, nod แบบ sinusoid 1 Hz คงที่, idle 6 s → sleepy, ไม่มี hormone state", "repeats": 3},
+    {"name": "C1", "baseline": false, "change": "เพิ่ม AHM H_social (k_prod 0.8, k_clear 0.6, k_bind 0.2) ปรับ φ ของ SO(2) CPG และ guard sleepy (R < 0.1) เท่านั้น", "repeats": 3}
+  ],
+  "metrics": [
+    {"name": "state_transitions_per_min", "unit": "transitions/min", "measurement": "นับการเปลี่ยน /lamp/emotion ระหว่าง tick ติดกันจาก interaction log ตลอด 600 s หารด้วย 10 min ทั้ง simulation และ robot", "missing_rule": "ถ้า log ขาดเกิน 5 s ต่อเนื่องให้รายงาน session เป็น incomplete พร้อมช่วงที่ขาด ไม่ประมาณค่าแทน และไม่ตัด session ออกเงียบๆ"},
+    {"name": "primary_pass_1s_both_rate", "unit": "fraction of declared primary inputs", "measurement": "simulation: max(first applied motion, first applied RGB) − source time จาก trace; robot: onset ของ servo จากกล้อง 120 fps และ LED จาก photodiode เทียบกับ LED marker ที่ติดพร้อมการกดปุ่ม/สัมผัส ใช้ clock เดียวกัน", "missing_rule": "ไม่พบ onset ภายใน 600 s = missing (null) แยกจาก deadline fail (> 1 s) ทั้งสองยังอยู่ใน denominator ห้ามแทนด้วย 0"},
+    {"name": "nod_frequency_hz", "unit": "Hz", "measurement": "ความถี่จาก rising zero crossing ของมุม nod ที่สั่ง (simulation) และจาก video tracking ของ marker บนหัวโคม (robot) ในช่วง happy/interested ที่ยาว ≥ 3 s", "missing_rule": "ช่วงที่มีน้อยกว่า 2 crossings รายงาน N/A พร้อมเหตุผล"}
+  ],
+  "controls": [
+    "ใช้ student_policy.py เวอร์ชันเดียวกัน (SHA-256 21791d61e2b64a3e283092d5d7a2264d074e4576b014872602cde8fa9886d0d5) ทั้ง C0 และ C1 เปลี่ยนเฉพาะ AHM module",
+    "stimulus script ของ scenario 600 s เดียวกัน (ลำดับ button/touch/approach/near/ช่วงเงียบตามตารางเวลา) ทั้งใน simulation และ robot ผู้ดำเนินการอ่านจาก cue sheet",
+    "hardware, firmware, servo calibration, ตำแหน่งโคม, แสงในห้อง, ระยะ sensor และ QoS (RELIABLE, KEEP_LAST 10, VOLATILE) เหมือนกันทุก session บันทึก config และ SHA ทุกครั้ง",
+    "debounce 0.06 s, hysteresis near 0.20/0.28 m และ approach 0.80/0.95 m, pose bounds และ slew 0.8 rad/s คงที่ตาม Lab06/07"
+  ],
+  "parameters": [
+    {"name": "k_prod", "value": 0.8, "unit": "normalized H/s", "provenance": "proposed course model (Lab04 C1)"},
+    {"name": "k_clear", "value": 0.6, "unit": "1/s", "provenance": "proposed course model (Lab04 C1)"},
+    {"name": "k_bind", "value": 0.2, "unit": "normalized H/s per R", "provenance": "proposed course model (Lab04 C1)"},
+    {"name": "alpha_CPG", "value": 1.1, "unit": "dimensionless", "provenance": "Lab03 SO(2) CPG, proposed course model"},
+    {"name": "phi_bounds", "value": [0.1, 0.45], "unit": "rad", "provenance": "Lab03/04 handoff contract"},
+    {"name": "phi_mapping", "value": "phi = 0.20 + 0.20R", "unit": "rad", "provenance": "Lab04 bounded mapping"},
+    {"name": "sleepy_guard_R", "value": 0.1, "unit": "R (dimensionless)", "provenance": "proposed by group; ต้องยืนยันใน pilot"},
+    {"name": "dt", "value": 0.02, "unit": "s", "provenance": "Lab06/07 scheduler tick"},
+    {"name": "debounce", "value": 0.06, "unit": "s", "provenance": "Lab06/07 C1 guard"},
+    {"name": "max_slew", "value": 0.8, "unit": "rad/s", "provenance": "Lab06/07 output bound; ต้องสอบเทียบบน servo จริง"}
+  ],
+  "simulation_plan": "ขยาย offline_lab.py ให้รัน scenario 600 s ด้วย virtual clock เดียว เพิ่ม AHM + SO(2) CPG module ใน interaction ทั้ง C0/C1 × seed 41/42/43 และ transport profile C0 (ideal) เก็บ input_trace, command_trace, events, config, manifest SHA-256 ตาม Lab07 จากนั้นรัน ROS 2 Jazzy track สาม process บน Ubuntu 24.04 และ ros2 bag record เจ็ด /lamp topics",
+  "real_robot_plan": "โคมไฟ 3 แกน (tilt/extend/nod) ขับด้วย servo ผ่าน ESP32 micro-ROS + Agent บน PC sensor: ปุ่ม, touch pad และ ToF distance บน ESP32 อีกตัว ส่ง sequence + acquisition time ใน sidecar สอบเทียบ rad → PWM ของแต่ละ servo ด้วย protractor 5 จุด ตรวจทิศและขีดจำกัดก่อน จำกัด slew ใน firmware ด้วย elapsed time จริง และวัด onset ด้วยกล้อง 120 fps + photodiode",
+  "clock_correlation_plan": "ทุก input มี input_id และ sequence ใน log wrapper; ESP32 sync เวลากับ PC ผ่าน micro-ROS time sync ทุก 1 s และบันทึก offset/round-trip เพื่อประมาณ error bound (เป้าหมาย ≤ 10 ms) กล้องและ photodiode เห็น LED marker ที่กระพริบตาม command เดียวกันเพื่อผูก clock ของ video กับ log ไม่ลบ timestamp ข้ามเครื่องโดยไม่มี mapping",
+  "safety_stop_plan": "ผู้ดำเนินการ 1 คน (operator) ถือปุ่ม emergency stop ที่ตัดไฟ servo โดยตรง หยุดทันทีถ้า servo ร้อนผิดปกติ ชนสิ่งกีดขวาง เคลื่อนนอก bounds ผู้เล่นขอหยุด หรือ watchdog ไม่ได้รับ command เกิน 0.5 s (firmware ค้างท่า neutral) ผู้เล่นอยู่ห่างโคม ≥ 0.15 m เสมอ ใช้แรงดันต่ำและ servo ขนาดเล็ก",
+  "order_counterbalancing": "แต่ละผู้เล่นทำทั้ง C0 และ C1 ลำดับสลับแบบ AB/BA: ผู้เล่น 1 และ 3 เริ่ม C0, ผู้เล่น 2 เริ่ม C1 พัก 5 นาทีระหว่าง condition และ reset hormone/FSM/servo เป็น neutral ก่อนทุก session",
+  "paired_seed_or_participant_plan": "Simulation จับคู่ seed 41/42/43 ระหว่าง C0/C1 Robot: ผู้เล่น 3 คน (สมาชิกกลุ่มหรืออาสาสมัครที่ยินยอม) เล่นทั้งสอง condition ด้วย cue sheet เดียวกัน ขอ consent เป็นลายลักษณ์อักษร ไม่บันทึกใบหน้า (กล้องถ่ายเฉพาะโคม) และตรวจกับอาจารย์ว่าต้องขอ ethics approval หรือไม่ก่อนเริ่ม",
+  "expected_input_ids_before_run": "ประกาศก่อนรัน: ใช้ baseline primary 7 ชนิด (button, touch, approach, clear, near, clear หลัง afraid, button หลัง sleepy) ทุกครั้งที่เกิดใน cue sheet 600 s โดยตั้ง input_id ตามลำดับใน cue sheet ส่วน touch ขณะ afraid และ fault ขณะ neutral เก็บไว้ใน all-sources แต่ไม่อยู่ใน primary denominator ใช้ชุดเดียวกันทั้ง C0/C1",
+  "human_scenario_duration_s": 600,
+  "timeline": "สัปดาห์ที่ 1 (17–23 พ.ย. 2569): implement AHM + CPG ใน simulation และ unit test; สัปดาห์ที่ 2 (24–30 พ.ย.): รัน simulation 600 s C0/C1 × 3 seeds และ ROS 2 track; สัปดาห์ที่ 3 (1–7 ธ.ค.): ประกอบ ESP32/micro-ROS, calibration servo และ clock sync; สัปดาห์ที่ 4 (8–14 ธ.ค.): pilot 1 session และปรับ cue sheet; สัปดาห์ที่ 5 (15–21 ธ.ค.): robot sessions 3 ผู้เล่น × 2 conditions; สัปดาห์ที่ 6 (22–28 ธ.ค.): วิเคราะห์และเขียนรายงาน (ปรับวันตามกำหนดส่งของรายวิชา)"
+}
